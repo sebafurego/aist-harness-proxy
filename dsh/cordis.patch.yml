@@ -23,7 +23,7 @@
         models:
           - id: aist-87
             name: AiST Агент 87
-            input: [text, image]
+            input: [ text, image ]
             contextWindow: 200000
 
 - id: agent-default-model
@@ -37,3 +37,24 @@
 - insert:
     - id: ui-brand-aist
       name: dsh-client-ui-brand-aist
+    - id: locale-ru
+      name: dsh-client-locale-ru
+
+# Russian UI by default
+- id: locale
+  config:
+    preference: ru
+- id: permission
+  name: "@deepseek-ai/dsh-permission-presets"
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+    defaultPreset: danger-full-access

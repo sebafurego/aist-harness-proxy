@@ -65,3 +65,19 @@ cp dsh/cordis.patch.yml ~/.dsh/profiles/web/   # отключает ui-brand-off
 
 Логотип задан inline-SVG в `lib/client.js` (`LOGO_SVG`); чтобы подставить оригинальный PNG,
 замените `LOGO_URL` на data-URI картинки.
+
+## Русский интерфейс
+
+Плагин `dsh/plugins/aist-locale-ru` регистрирует язык `ru` и словари для всех 58 пространств
+имён интерфейса (2615 строк). Источники: `dsh/i18n/en_all.json` (извлечено из бандлов dsh
+скриптами `extract2.cjs`/`extract3.cjs`) и `dsh/i18n/ru_all.json` (перевод). После правки перевода:
+
+```bash
+node dsh/i18n/build.cjs          # пересобирает lib/client.js плагина
+cp -R dsh/plugins/aist-locale-ru ~/.dsh/profiles/web/plugins/
+ln -sfn ../plugins/aist-locale-ru ~/.dsh/profiles/web/node_modules/dsh-client-locale-ru
+```
+
+Русский выбран по умолчанию через `- id: locale` → `preference: ru` в `cordis.patch.yml`;
+переключить можно в Настройки → Общие → Язык. При обновлении dsh новые строки появятся
+на английском (fallback), нужно заново извлечь `en_all.json` и дополнить перевод.
