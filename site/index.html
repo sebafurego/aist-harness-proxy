@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AiST для macOS и Windows</title>
+<meta name="description" content="Скачать AiST: агент AiST в десктоп-приложении для macOS и Windows. Всегда актуальная версия.">
+<link rel="icon" href="icon.svg">
+<style>
+:root{--bg:#0f1014;--card:#171922;--line:#262a36;--ink:#f2f3f7;--mute:#9aa0b4;--acc:#7c8cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI",Inter,Helvetica,Arial,sans-serif;line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:64px 20px 80px}
+.hero{display:flex;align-items:center;gap:20px;margin-bottom:12px}
+.logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#5b6cff,#5a3fd6 45%,#c25a9a 75%,#f2a35c);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:34px;color:#fff;flex:none}
+h1{font-size:40px;margin:0;letter-spacing:-.02em}
+.lede{color:var(--mute);font-size:18px;margin:0 0 36px}
+.ver{display:inline-flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--mute);margin-bottom:24px}
+.ver b{color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px}
+.card h2{margin:0;font-size:18px}
+.card p{margin:0;color:var(--mute);font-size:14px}
+.btn{display:inline-block;margin-top:auto;padding:12px 18px;border-radius:10px;background:var(--acc);color:#fff;text-decoration:none;font-weight:600;text-align:center}
+.btn.alt{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn[aria-disabled=true]{opacity:.45;pointer-events:none}
+.small{font-size:13px;color:var(--mute)}
+h3{font-size:16px;margin:28px 0 8px}
+ol,ul{color:var(--mute);padding-left:22px;margin:0}
+li{margin:4px 0}
+code{background:#20232e;padding:1px 6px;border-radius:6px;font-size:13px}
+.note{border-left:3px solid var(--acc);padding:10px 14px;background:var(--card);border-radius:0 12px 12px 0;color:var(--mute);font-size:14px;margin-top:20px}
+footer{margin-top:48px;color:var(--mute);font-size:13px}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero"><div class="logo">Ai</div><h1>AiST для компьютера</h1></div>
+  <p class="lede">Ваш ассистент AiST в десктоп-приложении: работает с файлами, терминалом и кодом прямо на компьютере. Всё нужное внутри, ничего доустанавливать не нужно.</p>
+
+  <div class="ver" id="ver">Загружаем сведения о последней версии…</div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>macOS</h2>
+      <p>Apple Silicon (M1 и новее). Образ .dmg: перетащите AiST в «Программы».</p>
+      <a class="btn" id="dl-mac" aria-disabled="true" href="#">Скачать для macOS</a>
+      <span class="small" id="sz-mac"></span>
+    </div>
+    <div class="card">
+      <h2>Windows</h2>
+      <p>Windows 10/11, 64-бит. Обычный установщик .exe.</p>
+      <a class="btn" id="dl-win" aria-disabled="true" href="#">Скачать для Windows</a>
+      <span class="small" id="sz-win"></span>
+    </div>
+  </div>
+
+  <h3>Первый запуск</h3>
+  <ol>
+    <li>Откройте AiST. Появится окно «Добавьте ассистента AiST».</li>
+    <li>Вставьте JWT-токен Agent API и ID ассистента из личного кабинета AiST, нажмите «Подключить».</li>
+    <li>Готово: выбирайте рабочую папку и ставьте задачи. Ассистентов можно добавить в Настройки → Ассистенты.</li>
+  </ol>
+
+  <div class="note" id="mac-note">
+    На macOS при первом открытии система может сообщить, что приложение от неустановленного разработчика. Нажмите правой кнопкой на AiST в «Программах» → «Открыть» → «Открыть». Это нужно один раз.
+  </div>
+
+  <h3>Обновления</h3>
+  <p class="small">Приложение само проверяет новые версии при запуске и раз в несколько часов, скачивает их в фоне и предлагает перезапуститься. Все версии: <a id="releases" href="#">страница релизов</a>.</p>
+
+  <footer>AiST · <span id="repo-link"></span></footer>
+</div>
+<script>
+(async () => {
+  const repo = location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] + '/' + location.pathname.split('/')[1] : 'sebafurego/aist-harness-proxy';
+  document.getElementById('releases').href = 'https://github.com/' + repo + '/releases';
+  document.getElementById('repo-link').innerHTML = '<a href="https://github.com/' + repo + '">github.com/' + repo + '</a>';
+  const fmt = (n) => n > 1e9 ? (n / 1e9).toFixed(2) + ' ГБ' : (n / 1e6).toFixed(0) + ' МБ';
+  let data = null;
+  try { const r = await fetch('latest.json', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch {}
+  if (!data || !data.tagName) {
+    try { const r = await fetch('https://api.github.com/repos/' + repo + '/releases/latest'); if (r.ok) { const j = await r.json(); data = { tagName: j.tag_name, publishedAt: j.published_at, assets: j.assets.map(a => ({ name: a.name, size: a.size, url: a.browser_download_url })) }; } } catch {}
+  }
+  const ver = document.getElementById('ver');
+  if (!data || !data.tagName) { ver.textContent = 'Сборки ещё не опубликованы. Загляните позже.'; return; }
+  const date = data.publishedAt ? new Date(data.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  ver.innerHTML = 'Актуальная версия <b>' + data.tagName.replace(/^v/, '') + '</b>' + (date ? ' · ' + date : '');
+  const assets = (data.assets || []).map(a => ({ name: a.name, size: a.size, url: a.url || ('https://github.com/' + repo + '/releases/download/' + data.tagName + '/' + a.name) }));
+  const pick = (re) => assets.find(a => re.test(a.name));
+  const mac = pick(/\.dmg$/i), win = pick(/\.exe$/i);
+  for (const [a, id, sz] of [[mac, 'dl-mac', 'sz-mac'], [win, 'dl-win', 'sz-win']]) {
+    const el = document.getElementById(id);
+    if (a) { el.href = a.url; el.removeAttribute('aria-disabled'); document.getElementById(sz).textContent = a.name + ' · ' + fmt(a.size); }
+    else document.getElementById(sz).textContent = 'Сборка для этой платформы ещё не опубликована.';
+  }
+  if (navigator.platform.toLowerCase().includes('win')) document.getElementById('mac-note').style.display = 'none';
+})();
+</script>
+</body>
+</html>

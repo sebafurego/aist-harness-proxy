@@ -1,0 +1,53 @@
+{
+  "name": "aist-harness-desktop",
+  "productName": "AiST",
+  "version": "0.1.0",
+  "description": "AiST desktop: DeepSeek Harness + AiST agent proxy in one app",
+  "main": "main.cjs",
+  "private": true,
+  "license": "MIT",
+  "author": "AiST",
+  "homepage": "https://github.com/sebafurego/aist-harness-proxy",
+  "repository": { "type": "git", "url": "https://github.com/sebafurego/aist-harness-proxy.git" },
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "release": "electron-builder --publish always"
+  },
+  "devDependencies": {
+    "electron": "39.8.10",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2",
+    "electron-log": "^5.4.1"
+  },
+  "build": {
+    "appId": "com.aist.harness",
+    "productName": "AiST",
+    "artifactName": "AiST-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "files": ["main.cjs", "preload.cjs", "bootstrap.cjs", "package.json"],
+    "extraResources": [
+      { "from": "runtime/node_modules", "to": "runtime/node_modules" },
+      { "from": "../server.js", "to": "proxy/server.js" },
+      { "from": "../dsh", "to": "dsh", "filter": ["plugins/**", "cordis.patch.yml"] },
+      { "from": "node-bin/${os}-${arch}", "to": "node" }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [{ "target": "dmg", "arch": ["arm64"] }, { "target": "zip", "arch": ["arm64"] }],
+      "icon": "build/icon.png",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": { "sign": false },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png"
+    },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "perMachine": false },
+    "publish": [{ "provider": "github", "owner": "sebafurego", "repo": "aist-harness-proxy", "releaseType": "release" }]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "aist-harness-runtime",
+  "private": true,
+  "description": "Pinned DeepSeek Harness runtime bundled into the AiST desktop app",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.2.0-rc.2"
+  }
+}

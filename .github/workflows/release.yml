@@ -1,0 +1,82 @@
+name: Release desktop apps
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  NODE_RUNTIME_VERSION: v22.23.3
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+            node_dist: darwin-arm64
+          - os: windows-latest
+            platform: win
+            arch: x64
+            node_dist: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            desktop/runtime/package-lock.json
+
+      - name: Install Harness runtime (platform-specific native modules)
+        working-directory: desktop/runtime
+        run: npm ci
+
+      - name: Download bundled Node (macOS)
+        if: matrix.platform == 'mac'
+        working-directory: desktop
+        run: |
+          mkdir -p node-bin/mac-${{ matrix.arch }}
+          curl -sL https://nodejs.org/dist/$NODE_RUNTIME_VERSION/node-$NODE_RUNTIME_VERSION-${{ matrix.node_dist }}.tar.gz -o node.tgz
+          tar -xzf node.tgz -C node-bin/mac-${{ matrix.arch }} --strip-components=2 node-$NODE_RUNTIME_VERSION-${{ matrix.node_dist }}/bin/node
+          node-bin/mac-${{ matrix.arch }}/node -v
+
+      - name: Download bundled Node (Windows)
+        if: matrix.platform == 'win'
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path node-bin/win-${{ matrix.arch }} | Out-Null
+          Invoke-WebRequest "https://nodejs.org/dist/$env:NODE_RUNTIME_VERSION/node-$env:NODE_RUNTIME_VERSION-${{ matrix.node_dist }}.zip" -OutFile node.zip
+          Expand-Archive node.zip -DestinationPath node-tmp
+          Copy-Item "node-tmp/node-$env:NODE_RUNTIME_VERSION-${{ matrix.node_dist }}/node.exe" node-bin/win-${{ matrix.arch }}/node.exe
+          & node-bin/win-${{ matrix.arch }}/node.exe -v
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build and publish to GitHub Release
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }} --publish always
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aist-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            desktop/dist/*.dmg
+            desktop/dist/*.zip
+            desktop/dist/*.exe
+            desktop/dist/*.yml
+          if-no-files-found: ignore

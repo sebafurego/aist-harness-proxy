@@ -101,3 +101,30 @@ ln -sfn ../plugins/aist-locale-ru ~/.dsh/profiles/web/node_modules/dsh-client-lo
 
 В `cordis.patch.yml` отключены DeepSeek-плагины: `llm-deepseek`, `llm-deepseek-account`,
 `ui-settings-models`, `ui-settings-account`. Единственный провайдер — AiST.
+
+## Десктоп-приложение (Electron)
+
+Папка `desktop/`: Electron-оболочка, которая запускает прокси и Harness на встроенном Node и
+показывает UI в окне. В комплекте: рантайм Harness (`desktop/runtime`, pinned версия),
+бинарник Node 22 (`desktop/node-bin/<os>-<arch>`, скачивается при сборке), прокси и плагины.
+Данные пользователя: `~/Library/Application Support/AiST` (macOS) / `%APPDATA%\AiST` (Windows):
+`dsh/` (DSH_HOME), `proxy/assistants.json`, `logs/`.
+
+```bash
+cd desktop/runtime && npm ci        # рантайм Harness
+cd .. && npm ci && npm start        # dev-режим (использует системный node)
+npx electron-builder --mac dmg zip  # локальная сборка (нужен node-bin/mac-arm64/node)
+```
+
+**Релизы.** Тег `vX.Y.Z` запускает `.github/workflows/release.yml`: сборка на macOS (arm64)
+и Windows (x64), публикация в GitHub Releases с `latest-mac.yml` / `latest.yml` для автообновления.
+Версия берётся из `desktop/package.json` — поднимайте её перед тегом.
+
+**Страница загрузки.** `site/` деплоится в GitHub Pages (`pages.yml`) при релизе; показывает
+актуальную версию и ссылки на .dmg/.exe из `latest.json`.
+
+**Автообновление.** electron-updater с провайдером GitHub: проверка при старте и каждые 6 часов,
+скачивание в фоне, установка при перезапуске. На macOS обновления применяются только у
+подписанного приложения (нужен Apple Developer ID; задайте `CSC_LINK`/`CSC_KEY_PASSWORD`
+в секретах и уберите `CSC_IDENTITY_AUTO_DISCOVERY=false`). На Windows работает без подписи,
+но SmartScreen предупреждает при установке.
