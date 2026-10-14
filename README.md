@@ -50,3 +50,18 @@ curl localhost:3091/v1/messages -H 'content-type: application/json' \
 - Лимит AiST: 5 активных задач на пользователя. При старте прокси отменяет все
   `interrupted` задачи этого пользователя (`CANCEL_INTERRUPTED_ON_START=false` чтобы отключить).
 - Картинки из сообщений пользователя загружаются в AiST через `POST /api/files`. Картинки из результатов инструментов (скриншоты, превью) AiST принять не может, поэтому прокси описывает их текстом через vision-модель (`VISION_API_URL`, `VISION_API_KEY`).
+
+## Брендинг AiST вместо DeepSeek
+
+Плагин `dsh/plugins/aist-brand` занимает слоты `sidebar.brand.mark`, `sidebar.brand.name`,
+`conversation.hero.brand.mark`, подменяет заголовок вкладки и фавикон. Установка:
+
+```bash
+cp -R dsh/plugins/aist-brand ~/.dsh/profiles/web/plugins/
+mkdir -p ~/.dsh/profiles/web/node_modules
+ln -sfn ../plugins/aist-brand ~/.dsh/profiles/web/node_modules/dsh-client-ui-brand-aist
+cp dsh/cordis.patch.yml ~/.dsh/profiles/web/   # отключает ui-brand-official, включает ui-brand-aist
+```
+
+Логотип задан inline-SVG в `lib/client.js` (`LOGO_SVG`); чтобы подставить оригинальный PNG,
+замените `LOGO_URL` на data-URI картинки.

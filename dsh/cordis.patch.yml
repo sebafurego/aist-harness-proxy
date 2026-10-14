@@ -30,3 +30,10 @@
   config:
     provider: aist
     model: aist-87
+
+# Brand: replace DeepSeek with AiST (local plugin in ./plugins/aist-brand)
+- id: ui-brand-official
+  disabled: true
+- insert:
+    - id: ui-brand-aist
+      name: dsh-client-ui-brand-aist
