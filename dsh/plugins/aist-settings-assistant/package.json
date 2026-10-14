@@ -1,0 +1,10 @@
+{
+  "name": "dsh-client-ui-settings-aist",
+  "description": "AiST assistant settings page (JWT + assistant id) for the dsh web client",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": { ".": "./lib/index.js", "./client": "./lib/client.js", "./package.json": "./package.json" },
+  "dsh": { "client": { "inject": ["@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-locale"], "platform": "web" } },
+  "license": "MIT"
+}

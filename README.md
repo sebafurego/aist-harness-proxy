@@ -81,3 +81,14 @@ ln -sfn ../plugins/aist-locale-ru ~/.dsh/profiles/web/node_modules/dsh-client-lo
 Русский выбран по умолчанию через `- id: locale` → `preference: ru` в `cordis.patch.yml`;
 переключить можно в Настройки → Общие → Язык. При обновлении dsh новые строки появятся
 на английском (fallback), нужно заново извлечь `en_all.json` и дополнить перевод.
+
+## Страница «Ассистент» вместо «Моделей»
+
+Плагин `dsh/plugins/aist-settings-assistant` регистрирует раздел настроек «Ассистент» с полями
+JWT и ID. Он ходит в прокси: `GET /config` (маскированный статус токена, срок действия) и
+`POST /config {token?, assistant_id}` — прокси проверяет токен запросом к AiST, пишет `.env`
+и применяет значения без перезапуска (история диалогов в памяти при этом сбрасывается).
+CORS открыт только для localhost-источников.
+
+В `cordis.patch.yml` отключены DeepSeek-плагины: `llm-deepseek`, `llm-deepseek-account`,
+`ui-settings-models`, `ui-settings-account`. Единственный провайдер — AiST.

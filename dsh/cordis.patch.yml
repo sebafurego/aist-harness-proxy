@@ -39,6 +39,18 @@
       name: dsh-client-ui-brand-aist
     - id: locale-ru
       name: dsh-client-locale-ru
+    - id: ui-settings-aist
+      name: dsh-client-ui-settings-aist
+
+# Only AiST: hide DeepSeek providers, the Models page and the Account page
+- id: llm-deepseek
+  disabled: true
+- id: llm-deepseek-account
+  disabled: true
+- id: ui-settings-models
+  disabled: true
+- id: ui-settings-account
+  disabled: true
 
 # Russian UI by default
 - id: locale

@@ -4,7 +4,7 @@
 
 import http from 'node:http';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 // ---- env -----------------------------------------------------------------
 if (existsSync('.env')) {
@@ -13,9 +13,11 @@ if (existsSync('.env')) {
     if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
 }
-const {
+let {
   AIST_TOKEN,
   AIST_ASSISTANT_ID = '87',
+} = process.env;
+const {
   AIST_BASE_URL = 'https://agent.aist-ai.com',
   PORT = '3091',
   POLL_INTERVAL_MS = '1000',
@@ -26,7 +28,38 @@ const {
   VISION_API_KEY = '',
   VISION_MODEL = 'claude-sonnet-4-5-20250929',
 } = process.env;
-if (!AIST_TOKEN) { console.error('AIST_TOKEN is required (.env)'); process.exit(1); }
+if (!AIST_TOKEN) console.warn('AIST_TOKEN is not set: configure it via the Harness settings page (Ассистент) or .env');
+
+// ---- runtime config (JWT + assistant id), persisted to .env ----------------
+function saveEnv(updates) {
+  let text = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
+  for (const [k, v] of Object.entries(updates)) {
+    const re = new RegExp(`^${k}=.*$`, 'm');
+    if (re.test(text)) text = text.replace(re, `${k}=${v}`);
+    else text += (text && !text.endsWith('\n') ? '\n' : '') + `${k}=${v}\n`;
+  }
+  writeFileSync('.env', text);
+}
+function decodeJwt(token) {
+  try { const p = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()); return { sub: p.sub, exp: p.exp, abilities: p.abilities }; } catch { return null; }
+}
+function configView() {
+  const jwt = decodeJwt(AIST_TOKEN || '');
+  return {
+    assistant_id: Number(AIST_ASSISTANT_ID) || null,
+    token_set: Boolean(AIST_TOKEN),
+    token_tail: AIST_TOKEN ? AIST_TOKEN.slice(-6) : null,
+    token_exp: jwt?.exp ? new Date(jwt.exp * 1000).toISOString() : null,
+    token_user: jwt?.sub ?? null,
+    base_url: AIST_BASE_URL,
+  };
+}
+function corsHeaders(req) {
+  const origin = req.headers.origin || '';
+  const ok = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
+  return ok ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS', 'Access-Control-Allow-Headers': 'content-type', Vary: 'Origin' } : {};
+}
+function json(res, status, obj, extra = {}) { res.writeHead(status, { 'Content-Type': 'application/json', ...extra }); res.end(JSON.stringify(obj)); }
 
 const log = (...a) => LOG_LEVEL !== 'silent' && console.log(new Date().toISOString(), ...a);
 const debug = (...a) => LOG_LEVEL === 'debug' && console.log(new Date().toISOString(), ...a);
@@ -299,7 +332,25 @@ function readBody(req) {
 // ---- http server ---------------------------------------------------------
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  const cors = corsHeaders(req);
+  if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
   try {
+    if (url.pathname === '/config' && req.method === 'GET') return json(res, 200, configView(), cors);
+    if (url.pathname === '/config' && req.method === 'POST') {
+      const body = await readBody(req);
+      const token = typeof body.token === 'string' && body.token.trim() ? body.token.trim() : AIST_TOKEN;
+      const id = body.assistant_id !== undefined && body.assistant_id !== '' ? Number(body.assistant_id) : Number(AIST_ASSISTANT_ID);
+      if (!token) return json(res, 400, { ok: false, error: 'Укажите JWT' }, cors);
+      if (!Number.isInteger(id) || id <= 0) return json(res, 400, { ok: false, error: 'ID ассистента должен быть положительным числом' }, cors);
+      if (!decodeJwt(token)) return json(res, 400, { ok: false, error: 'Это не похоже на JWT' }, cors);
+      const check = await fetch(`${AIST_BASE_URL}/api/tasks?per_page=1`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+      if (!check.ok) return json(res, 400, { ok: false, error: `AiST отверг токен (HTTP ${check.status})` }, cors);
+      AIST_TOKEN = token; AIST_ASSISTANT_ID = String(id);
+      saveEnv({ AIST_TOKEN: token, AIST_ASSISTANT_ID: String(id) });
+      convTurns.clear(); pendingByToolId.clear(); pendingByTask.clear();
+      log(`config updated: assistant ${id}, token …${token.slice(-6)}`);
+      return json(res, 200, { ok: true, ...configView() }, cors);
+    }
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ ok: true, assistant_id: Number(AIST_ASSISTANT_ID), conversations: convTurns.size, pending_tasks: pendingByTask.size }));
