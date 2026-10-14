@@ -23,7 +23,7 @@
         models:
           - id: aist-87
             name: AiST Агент 87
-            input: [text]
+            input: [text, image]
             contextWindow: 200000
 
 - id: agent-default-model

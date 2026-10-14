@@ -22,6 +22,9 @@ const {
   STEP_TIMEOUT_S = '1800',
   CANCEL_INTERRUPTED_ON_START = 'true',
   LOG_LEVEL = 'info',
+  VISION_API_URL = 'https://jetstream.aist-ai.com/_claude/v1/messages',
+  VISION_API_KEY = '',
+  VISION_MODEL = 'claude-sonnet-4-5-20250929',
 } = process.env;
 if (!AIST_TOKEN) { console.error('AIST_TOKEN is required (.env)'); process.exit(1); }
 
@@ -49,6 +52,50 @@ async function aist(method, path, body) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Upload a base64 image to AiST; returns a ready `input` item.
+async function uploadImage(block, idx) {
+  const { media_type, data } = block.source;
+  const ext = (media_type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  const form = new FormData();
+  form.append('file', new Blob([Buffer.from(data, 'base64')], { type: media_type }), `image_${idx}.${ext}`);
+  const res = await fetch(`${AIST_BASE_URL}/api/files`, { method: 'POST', headers: { Authorization: `Bearer ${AIST_TOKEN}`, Accept: 'application/json' }, body: form });
+  if (!res.ok) throw new Error(`AiST upload failed ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const item = await res.json();
+  log(`↑ uploaded image ${item.file?.name ?? item.name ?? idx} (${Math.round(data.length * 0.75 / 1024)} KB)`);
+  return item.type ? item : { type: 'file', file: item };
+}
+
+// Describe an image via an Anthropic-compatible vision endpoint (for tool results,
+// which AiST only accepts as text).
+async function describeImage(block) {
+  if (!VISION_API_KEY) return '[image: no VISION_API_KEY configured, description unavailable]';
+  const res = await fetch(VISION_API_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${VISION_API_KEY}`, 'x-api-key': VISION_API_KEY, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: VISION_MODEL, max_tokens: 1500,
+      system: 'You are the eyes of a coding agent that cannot see images. Describe the image exhaustively and literally: layout, every visible text verbatim, colors, fonts, alignment, overflow or clipping, visual defects, UI state. Be concrete and structured. No preamble.',
+      messages: [{ role: 'user', content: [block, { type: 'text', text: 'Describe this image for the agent.' }] }],
+    }),
+  });
+  if (!res.ok) { const t = await res.text(); log('vision error', res.status, t.slice(0, 200)); return `[image: vision request failed ${res.status}]`; }
+  const j = await res.json();
+  const text = (j.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+  log(`👁 described image (${text.length} chars)`);
+  return `[image description by vision model]\n${text}`;
+}
+
+// Like blocksToText, but images are replaced by vision descriptions.
+async function blocksToTextWithVision(content) {
+  if (content == null || typeof content === 'string') return blocksToText(content);
+  const parts = [];
+  for (const b of content) {
+    if (b.type === 'image' && b.source?.type === 'base64') parts.push(await describeImage(b));
+    else parts.push(blocksToText([b]));
+  }
+  return parts.filter(Boolean).join('\n');
+}
 
 async function waitForTask(uuid) {
   const deadline = Date.now() + Number(STEP_TIMEOUT_S) * 1000;
@@ -140,9 +187,10 @@ async function handleMessages(body) {
     const results = [];
     for (const r of toolResults) {
       if (!expected.has(r.tool_use_id)) continue;
+      const text = await blocksToTextWithVision(r.content);
       results.push(r.is_error
-        ? { id: r.tool_use_id, error: blocksToText(r.content).slice(0, 20000) || 'Tool error', reason: 'tool_error' }
-        : { id: r.tool_use_id, content: blocksToText(r.content) || '(empty)' });
+        ? { id: r.tool_use_id, error: text.slice(0, 20000) || 'Tool error', reason: 'tool_error' }
+        : { id: r.tool_use_id, content: text || '(empty)' });
     }
     for (const id of expected) if (!results.find((x) => x.id === id)) results.push({ id, error: 'No result returned by client', reason: 'missing' });
     for (const id of expected) pendingByToolId.delete(id);
@@ -163,6 +211,13 @@ async function handleMessages(body) {
       input.push({ type: 'text', text: `<previous_conversation>\n${transcript}\n</previous_conversation>` });
     }
     input.push({ type: 'text', text: blocksToText(last?.content) || '(empty message)' });
+    if (Array.isArray(last?.content)) {
+      const images = last.content.filter((b) => b.type === 'image' && b.source?.type === 'base64');
+      for (const [i, img] of images.entries()) {
+        try { input.push(await uploadImage(img, i + 1)); }
+        catch (e) { log('upload failed, falling back to vision:', e.message); input.push({ type: 'text', text: await describeImage(img) }); }
+      }
+    }
     const payload = { assistant_id: Number(AIST_ASSISTANT_ID), input };
     if (turns.length) payload.turns = turns.slice(-20);
     const clientTools = toClientTools(tools);
