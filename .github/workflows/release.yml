@@ -101,24 +101,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Write latest release info
+      - name: Deploy the download page from main (environment rules allow main only)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p out && cp -R site/* out/
-          gh release view "$GITHUB_REF_NAME" --json tagName,name,publishedAt,body,assets > out/latest.json
-          head -c 400 out/latest.json
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: out
-      - id: deployment
-        uses: actions/deploy-pages@v4
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
