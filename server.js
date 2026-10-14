@@ -5,6 +5,8 @@
 import http from 'node:http';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 // ---- env -----------------------------------------------------------------
 if (existsSync('.env')) {
@@ -13,10 +15,6 @@ if (existsSync('.env')) {
     if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
 }
-let {
-  AIST_TOKEN,
-  AIST_ASSISTANT_ID = '87',
-} = process.env;
 const {
   AIST_BASE_URL = 'https://agent.aist-ai.com',
   PORT = '3091',
@@ -27,33 +25,77 @@ const {
   VISION_API_URL = 'https://jetstream.aist-ai.com/_claude/v1/messages',
   VISION_API_KEY = '',
   VISION_MODEL = 'claude-sonnet-4-5-20250929',
+  ASSISTANTS_FILE = 'assistants.json',
+  DSH_PATCH_FILE = join(homedir(), '.dsh', 'profiles', 'web', 'cordis.patch.yml'),
 } = process.env;
-if (!AIST_TOKEN) console.warn('AIST_TOKEN is not set: configure it via the Harness settings page (Ассистент) or .env');
 
-// ---- runtime config (JWT + assistant id), persisted to .env ----------------
-function saveEnv(updates) {
-  let text = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
-  for (const [k, v] of Object.entries(updates)) {
-    const re = new RegExp(`^${k}=.*$`, 'm');
-    if (re.test(text)) text = text.replace(re, `${k}=${v}`);
-    else text += (text && !text.endsWith('\n') ? '\n' : '') + `${k}=${v}\n`;
-  }
-  writeFileSync('.env', text);
-}
+// ---- assistants registry (several JWT + assistant_id pairs) ---------------
+// Each assistant is exposed to clients as model id `aist-<slug>`.
+let assistants = [];
 function decodeJwt(token) {
   try { const p = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()); return { sub: p.sub, exp: p.exp, abilities: p.abilities }; } catch { return null; }
 }
-function configView() {
-  const jwt = decodeJwt(AIST_TOKEN || '');
-  return {
-    assistant_id: Number(AIST_ASSISTANT_ID) || null,
-    token_set: Boolean(AIST_TOKEN),
-    token_tail: AIST_TOKEN ? AIST_TOKEN.slice(-6) : null,
-    token_exp: jwt?.exp ? new Date(jwt.exp * 1000).toISOString() : null,
-    token_user: jwt?.sub ?? null,
-    base_url: AIST_BASE_URL,
-  };
+function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'a'; }
+function loadAssistants() {
+  if (existsSync(ASSISTANTS_FILE)) {
+    try { assistants = JSON.parse(readFileSync(ASSISTANTS_FILE, 'utf8')).assistants ?? []; } catch (e) { console.error('assistants.json is invalid:', e.message); assistants = []; }
+  } else if (process.env.AIST_TOKEN) {
+    // migrate the single-assistant .env setup
+    const id = Number(process.env.AIST_ASSISTANT_ID || 87);
+    assistants = [{ slug: String(id), name: `AiST Агент ${id}`, assistant_id: id, token: process.env.AIST_TOKEN, default: true }];
+    saveAssistants();
+  }
+  if (assistants.length && !assistants.some((a) => a.default)) assistants[0].default = true;
 }
+function saveAssistants() { writeFileSync(ASSISTANTS_FILE, JSON.stringify({ assistants }, null, 2) + '\n'); }
+function defaultAssistant() { return assistants.find((a) => a.default) ?? assistants[0] ?? null; }
+function assistantForModel(model) {
+  const m = String(model ?? '');
+  const slug = m.startsWith('aist-') ? m.slice(5) : m;
+  return assistants.find((a) => a.slug === slug) ?? defaultAssistant();
+}
+function assistantView(a) {
+  const jwt = decodeJwt(a.token || '');
+  return { slug: a.slug, name: a.name, assistant_id: a.assistant_id, default: Boolean(a.default), model: `aist-${a.slug}`, token_tail: a.token ? a.token.slice(-6) : null, token_exp: jwt?.exp ? new Date(jwt.exp * 1000).toISOString() : null, token_user: jwt?.sub ?? null };
+}
+function configView() { return { assistants: assistants.map(assistantView), base_url: AIST_BASE_URL, dsh_patch_file: DSH_PATCH_FILE, dsh_patch_synced: existsSync(DSH_PATCH_FILE) && readFileSync(DSH_PATCH_FILE, 'utf8').includes('# BEGIN aist-provider') };
+}
+const yq = (v) => "'" + String(v).replace(/'/g, "''") + "'";
+// Keep the Harness model catalog in sync: rewrite the marked block in cordis.patch.yml.
+function syncDshPatch() {
+  if (!existsSync(DSH_PATCH_FILE)) return false;
+  const text = readFileSync(DSH_PATCH_FILE, 'utf8');
+  const begin = text.indexOf('# BEGIN aist-provider'), endI = text.indexOf('# END aist-provider');
+  if (begin < 0 || endI < 0) { log('cordis.patch.yml has no aist-provider markers; models list not synced'); return false; }
+  const d = defaultAssistant();
+  const models = assistants.map((a) => `          - id: aist-${a.slug}\n            name: ${yq(a.name)}\n            input: [text, image]\n            contextWindow: 200000\n`).join('');
+  const block = `# BEGIN aist-provider (managed by aist-harness-proxy; edit assistants in Settings → Ассистент)
+- id: llm-pi-ai
+  config:
+    providers:
+      aist:
+        displayName: AiST
+        apiKeyEnv: AIST_PROXY_KEY
+        api: anthropic-messages
+        baseURL: http://127.0.0.1:${PORT}
+        defaultContextWindow: 200000
+        defaultMaxTokens: 32768
+        retryPolicy:
+          mode: normal
+          maxRetries: 2
+        models:
+${models || '          []\n'}
+- id: agent-default-model
+  config:
+    provider: aist
+    model: aist-${d ? d.slug : 'none'}
+`;
+  writeFileSync(DSH_PATCH_FILE, text.slice(0, begin) + block + text.slice(endI));
+  return true;
+}
+loadAssistants();
+if (!assistants.length) console.warn('No assistants configured: add one via the Harness settings page (Ассистент)');
+
 function corsHeaders(req) {
   const origin = req.headers.origin || '';
   const ok = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
@@ -65,11 +107,11 @@ const log = (...a) => LOG_LEVEL !== 'silent' && console.log(new Date().toISOStri
 const debug = (...a) => LOG_LEVEL === 'debug' && console.log(new Date().toISOString(), ...a);
 
 // ---- AiST client ---------------------------------------------------------
-async function aist(method, path, body) {
+async function aist(token, method, path, body) {
   const res = await fetch(AIST_BASE_URL + path, {
     method,
     headers: {
-      Authorization: `Bearer ${AIST_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       Accept: 'application/json',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
@@ -87,12 +129,12 @@ async function aist(method, path, body) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Upload a base64 image to AiST; returns a ready `input` item.
-async function uploadImage(block, idx) {
+async function uploadImage(token, block, idx) {
   const { media_type, data } = block.source;
   const ext = (media_type.split('/')[1] || 'png').replace('jpeg', 'jpg');
   const form = new FormData();
   form.append('file', new Blob([Buffer.from(data, 'base64')], { type: media_type }), `image_${idx}.${ext}`);
-  const res = await fetch(`${AIST_BASE_URL}/api/files`, { method: 'POST', headers: { Authorization: `Bearer ${AIST_TOKEN}`, Accept: 'application/json' }, body: form });
+  const res = await fetch(`${AIST_BASE_URL}/api/files`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, body: form });
   if (!res.ok) throw new Error(`AiST upload failed ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const item = await res.json();
   log(`↑ uploaded image ${item.file?.name ?? item.name ?? idx} (${Math.round(data.length * 0.75 / 1024)} KB)`);
@@ -130,10 +172,10 @@ async function blocksToTextWithVision(content) {
   return parts.filter(Boolean).join('\n');
 }
 
-async function waitForTask(uuid) {
+async function waitForTask(token, uuid) {
   const deadline = Date.now() + Number(STEP_TIMEOUT_S) * 1000;
   while (Date.now() < deadline) {
-    const t = await aist('GET', `/api/tasks/${uuid}`);
+    const t = await aist(token, 'GET', `/api/tasks/${uuid}`);
     if (t.status === 'interrupted' || t.status === 'completed' || t.status === 'failed' || t.status === 'canceled') return t;
     await sleep(Number(POLL_INTERVAL_MS));
   }
@@ -206,8 +248,11 @@ function estimateTokens(obj) { return Math.ceil(JSON.stringify(obj).length / 4);
 // ---- core: one anthropic request -> one AiST step -----------------------
 async function handleMessages(body) {
   const { system, messages = [], tools = [] } = body;
+  const asst = assistantForModel(body.model);
+  if (!asst) throw Object.assign(new Error('No AiST assistant configured. Open Settings → Ассистент and add a JWT + assistant id.'), { status: 400 });
+  const token = asst.token;
   const last = messages[messages.length - 1];
-  const convKey = conversationKey(system, messages);
+  const convKey = asst.slug + ':' + conversationKey(system, messages);
   const toolResults = Array.isArray(last?.content) ? last.content.filter((b) => b.type === 'tool_result') : [];
 
   let task;
@@ -227,7 +272,7 @@ async function handleMessages(body) {
       // So: close the interrupted task and re-open the turn as a new task carrying the
       // transcript of this turn so far plus the images as uploaded files.
       log(`→ ${uuid} tool result carries ${images.length} image(s): re-opening turn as a new task with files`);
-      try { await aist('POST', `/api/tasks/${uuid}/cancel`, { reason: 'tool result contains images; continued in a new task' }); } catch (e) { log('cancel failed:', e.message); }
+      try { await aist(token, 'POST', `/api/tasks/${uuid}/cancel`, { reason: 'tool result contains images; continued in a new task' }); } catch (e) { log('cancel failed:', e.message); }
       const input = [];
       const sys = systemToText(system);
       if (sys) input.push({ type: 'text', text: `<system>\n${sys}\n</system>` });
@@ -243,16 +288,16 @@ async function handleMessages(body) {
       }
       input.push({ type: 'text', text: `<turn_in_progress>\n${transcript}\n\n${resultsText.join('\n')}\n</turn_in_progress>\n\nThe attached image(s) are the result of the last tool call(s). Continue the task from this point; do not repeat completed steps.` });
       for (const [i, img] of images.entries()) {
-        try { input.push(await uploadImage(img, i + 1)); }
+        try { input.push(await uploadImage(token, img, i + 1)); }
         catch (e) { log('upload failed, falling back to vision:', e.message); input.push({ type: 'text', text: await describeImage(img) }); }
       }
-      const payload = { assistant_id: Number(AIST_ASSISTANT_ID), input };
+      const payload = { assistant_id: Number(asst.assistant_id), input };
       if (turns.length) payload.turns = turns.slice(-20);
       const clientTools = toClientTools(tools);
       if (clientTools.length) payload.client_tools = clientTools;
-      const created = await aist('POST', '/api/tasks', payload);
+      const created = await aist(token, 'POST', '/api/tasks', payload);
       log(`→ task ${created.uuid} created (re-opened turn with ${images.length} image(s))`);
-      task = await waitForTask(created.uuid);
+      task = await waitForTask(token, created.uuid);
     } else {
       const results = [];
       for (const r of mine) {
@@ -263,8 +308,8 @@ async function handleMessages(body) {
       }
       for (const id of expected) if (!results.find((x) => x.id === id)) results.push({ id, error: 'No result returned by client', reason: 'missing' });
       log(`→ tool-results ${uuid} (${results.length})`);
-      await aist('POST', `/api/tasks/${uuid}/tool-results`, { tool_results: results });
-      task = await waitForTask(uuid);
+      await aist(token, 'POST', `/api/tasks/${uuid}/tool-results`, { tool_results: results });
+      task = await waitForTask(token, uuid);
     }
   } else {
     // ---- new task
@@ -282,18 +327,18 @@ async function handleMessages(body) {
     if (Array.isArray(last?.content)) {
       const images = last.content.filter((b) => b.type === 'image' && b.source?.type === 'base64');
       for (const [i, img] of images.entries()) {
-        try { input.push(await uploadImage(img, i + 1)); }
+        try { input.push(await uploadImage(token, img, i + 1)); }
         catch (e) { log('upload failed, falling back to vision:', e.message); input.push({ type: 'text', text: await describeImage(img) }); }
       }
     }
-    const payload = { assistant_id: Number(AIST_ASSISTANT_ID), input };
+    const payload = { assistant_id: Number(asst.assistant_id), input };
     if (turns.length) payload.turns = turns.slice(-20);
     const clientTools = toClientTools(tools);
     if (clientTools.length) payload.client_tools = clientTools;
     debug('create payload', JSON.stringify(payload).slice(0, 2000));
-    const created = await aist('POST', '/api/tasks', payload);
-    log(`→ task ${created.uuid} created (user msg #${userMsgs.length}, tools ${clientTools.length})`);
-    task = await waitForTask(created.uuid);
+    const created = await aist(token, 'POST', '/api/tasks', payload);
+    log(`→ task ${created.uuid} created [${asst.slug}] (user msg #${userMsgs.length}, tools ${clientTools.length})`);
+    task = await waitForTask(token, created.uuid);
   }
 
   // ---- translate the step result
@@ -373,26 +418,41 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/config' && req.method === 'GET') return json(res, 200, configView(), cors);
     if (url.pathname === '/config' && req.method === 'POST') {
       const body = await readBody(req);
-      const token = typeof body.token === 'string' && body.token.trim() ? body.token.trim() : AIST_TOKEN;
-      const id = body.assistant_id !== undefined && body.assistant_id !== '' ? Number(body.assistant_id) : Number(AIST_ASSISTANT_ID);
-      if (!token) return json(res, 400, { ok: false, error: 'Укажите JWT' }, cors);
-      if (!Number.isInteger(id) || id <= 0) return json(res, 400, { ok: false, error: 'ID ассистента должен быть положительным числом' }, cors);
-      if (!decodeJwt(token)) return json(res, 400, { ok: false, error: 'Это не похоже на JWT' }, cors);
-      const check = await fetch(`${AIST_BASE_URL}/api/tasks?per_page=1`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
-      if (!check.ok) return json(res, 400, { ok: false, error: `AiST отверг токен (HTTP ${check.status})` }, cors);
-      AIST_TOKEN = token; AIST_ASSISTANT_ID = String(id);
-      saveEnv({ AIST_TOKEN: token, AIST_ASSISTANT_ID: String(id) });
+      if (!Array.isArray(body.assistants)) return json(res, 400, { ok: false, error: 'Ожидается массив assistants' }, cors);
+      const next = []; const seen = new Set();
+      for (const [i, item] of body.assistants.entries()) {
+        const name = String(item.name ?? '').trim();
+        const id = Number(item.assistant_id);
+        if (!name) return json(res, 400, { ok: false, error: `Ассистент #${i + 1}: укажите название` }, cors);
+        if (!Number.isInteger(id) || id <= 0) return json(res, 400, { ok: false, error: `«${name}»: ID ассистента должен быть положительным числом` }, cors);
+        const existing = item.slug ? assistants.find((a) => a.slug === item.slug) : null;
+        let token = typeof item.token === 'string' && item.token.trim() ? item.token.trim() : existing?.token;
+        if (!token) return json(res, 400, { ok: false, error: `«${name}»: укажите JWT` }, cors);
+        if (!decodeJwt(token)) return json(res, 400, { ok: false, error: `«${name}»: это не похоже на JWT` }, cors);
+        if (token !== existing?.token) {
+          const check = await fetch(`${AIST_BASE_URL}/api/tasks?per_page=1`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+          if (!check.ok) return json(res, 400, { ok: false, error: `«${name}»: AiST отверг токен (HTTP ${check.status})` }, cors);
+        }
+        let slug = existing?.slug || slugify(item.slug || String(id));
+        while (seen.has(slug)) slug += '-' + (i + 1);
+        seen.add(slug);
+        next.push({ slug, name, assistant_id: id, token, default: Boolean(item.default) });
+      }
+      if (next.length && !next.some((a) => a.default)) next[0].default = true;
+      if (next.filter((a) => a.default).length > 1) next.forEach((a, i) => { a.default = i === next.findIndex((x) => x.default); });
+      assistants = next; saveAssistants();
+      const synced = syncDshPatch();
       convTurns.clear(); pendingByToolId.clear(); pendingByTask.clear();
-      log(`config updated: assistant ${id}, token …${token.slice(-6)}`);
+      log(`config updated: ${assistants.map((a) => `${a.slug}(#${a.assistant_id})`).join(', ')}${synced ? '; dsh patch synced' : ''}`);
       return json(res, 200, { ok: true, ...configView() }, cors);
     }
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: true, assistant_id: Number(AIST_ASSISTANT_ID), conversations: convTurns.size, pending_tasks: pendingByTask.size }));
+      return res.end(JSON.stringify({ ok: true, assistants: assistants.map((a) => a.slug), conversations: convTurns.size, pending_tasks: pendingByTask.size }));
     }
     if (req.method === 'GET' && url.pathname === '/v1/models') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ data: [{ id: `aist-${AIST_ASSISTANT_ID}`, type: 'model', display_name: `AiST assistant ${AIST_ASSISTANT_ID}`, created_at: '2026-01-01T00:00:00Z' }], has_more: false }));
+      return res.end(JSON.stringify({ data: assistants.map((a) => ({ id: `aist-${a.slug}`, type: 'model', display_name: a.name, created_at: '2026-01-01T00:00:00Z' })), has_more: false }));
     }
     if (req.method === 'POST' && url.pathname === '/v1/messages/count_tokens') {
       const body = await readBody(req);
@@ -419,8 +479,11 @@ const server = http.createServer(async (req, res) => {
 
 (async () => {
   if (CANCEL_INTERRUPTED_ON_START === 'true') {
-    try { const r = await aist('POST', '/api/tasks/cancel-interrupted', { reason: 'aist-harness-proxy start' }); if (r.canceled) log(`cancelled ${r.canceled} stale interrupted task(s)`); }
-    catch (e) { log('cancel-interrupted failed:', e.message); }
+    for (const token of new Set(assistants.map((a) => a.token))) {
+      try { const r = await aist(token, 'POST', '/api/tasks/cancel-interrupted', { reason: 'aist-harness-proxy start' }); if (r.canceled) log(`cancelled ${r.canceled} stale interrupted task(s)`); }
+      catch (e) { log('cancel-interrupted failed:', e.message); }
+    }
   }
-  server.listen(Number(PORT), () => log(`aist-harness-proxy listening on http://localhost:${PORT}/v1 (assistant ${AIST_ASSISTANT_ID})`));
+  syncDshPatch();
+  server.listen(Number(PORT), () => log(`aist-harness-proxy listening on http://localhost:${PORT}/v1 (${assistants.length} assistant(s): ${assistants.map((a) => a.slug).join(', ')})`));
 })();

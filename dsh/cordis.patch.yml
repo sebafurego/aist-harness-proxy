@@ -6,7 +6,7 @@
   config:
     welcomeNoticeVersion: 2026-09-28.1
 
-# AiST agent via local Anthropic-compatible proxy (~/dev/aist-harness-proxy)
+# BEGIN aist-provider (managed by aist-harness-proxy; edit assistants in Settings → Ассистент)
 - id: llm-pi-ai
   config:
     providers:
@@ -22,14 +22,15 @@
           maxRetries: 2
         models:
           - id: aist-87
-            name: AiST Агент 87
-            input: [ text, image ]
+            name: 'AiST Агент 87'
+            input: [text, image]
             contextWindow: 200000
 
 - id: agent-default-model
   config:
     provider: aist
     model: aist-87
+# END aist-provider
 
 # Brand: replace DeepSeek with AiST (local plugin in ./plugins/aist-brand)
 - id: ui-brand-official
