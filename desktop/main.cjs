@@ -92,8 +92,8 @@ function startHarness() {
       if (buf.length > 200000) buf = buf.slice(-50000);
     };
     child.stdout.on('data', onData);
-    child.on('exit', (code) => reject(new Error(`Harness exited with code ${code} before it was ready. See ${join(logsDir, 'harness.log')}`)));
-    setTimeout(() => reject(new Error('Harness did not start within 120 s. See logs in ' + logsDir)), 120000);
+    child.on('exit', (code) => reject(new Error(`Приложение не запустилось (код ${code}). Смотрите ${join(logsDir, 'harness.log')}`)));
+    setTimeout(() => reject(new Error('Приложение не запустилось за 120 с. Логи: ' + logsDir)), 120000);
   });
 }
 
@@ -101,7 +101,7 @@ function startHarness() {
 let win;
 let lastUrl = null;
 function splash(text) {
-  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>AiST</title>
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>AiST.Ai</title>
 <style>html,body{height:100%;margin:0;background:#141414;color:#eee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif}
 .c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
 .logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#5b6cff,#5a3fd6 45%,#c25a9a 75%,#f2a35c);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:34px;color:#fff}
@@ -118,20 +118,20 @@ function createWindow() {
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.on('closed', () => { win = null; });
-  win.loadURL(splash('Запуск AiST…'));
+  win.loadURL(splash('Запуск AiST.Ai…'));
   return win;
 }
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
-    ...(isMac ? [{ label: 'AiST', submenu: [{ role: 'about', label: 'О программе AiST' }, { type: 'separator' }, { label: 'Проверить обновления…', click: () => checkUpdates(true) }, { type: 'separator' }, { role: 'hide', label: 'Скрыть AiST' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit', label: 'Завершить AiST' }] }] : []),
+    ...(isMac ? [{ label: 'AiST', submenu: [{ role: 'about', label: 'О программе AiST.Ai' }, { type: 'separator' }, { label: 'Проверить обновления…', click: () => checkUpdates(true) }, { type: 'separator' }, { role: 'hide', label: 'Скрыть AiST.Ai' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit', label: 'Завершить AiST.Ai' }] }] : []),
     { label: 'Правка', submenu: [{ role: 'undo', label: 'Отменить' }, { role: 'redo', label: 'Повторить' }, { type: 'separator' }, { role: 'cut', label: 'Вырезать' }, { role: 'copy', label: 'Копировать' }, { role: 'paste', label: 'Вставить' }, { role: 'selectAll', label: 'Выбрать всё' }] },
     { label: 'Вид', submenu: [{ role: 'reload', label: 'Перезагрузить' }, { role: 'toggleDevTools', label: 'Инструменты разработчика' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen', label: 'Во весь экран' }] },
     { label: 'Справка', submenu: [
       { label: 'Папка с логами', click: () => shell.openPath(logsDir) },
       { label: 'Папка данных', click: () => shell.openPath(userData) },
-      ...(isMac ? [] : [{ label: 'Проверить обновления…', click: () => checkUpdates(true) }, { label: 'О программе', click: () => dialog.showMessageBox({ title: 'AiST', message: `AiST ${app.getVersion()}`, detail: 'DeepSeek Harness + AiST agent proxy' }) }]),
+      ...(isMac ? [] : [{ label: 'Проверить обновления…', click: () => checkUpdates(true) }, { label: 'О программе', click: () => dialog.showMessageBox({ title: 'AiST', message: `AiST.Ai ${app.getVersion()}`, detail: 'Десктоп-приложение для ассистентов AiST' }) }]),
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -147,7 +147,7 @@ function setupUpdates() {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('update-downloaded', async (info) => {
-      const { response } = await dialog.showMessageBox(win, { type: 'info', buttons: ['Перезапустить сейчас', 'Позже'], defaultId: 0, cancelId: 1, title: 'Обновление AiST', message: `Загружена версия ${info.version}`, detail: 'Обновление установится при перезапуске приложения.' });
+      const { response } = await dialog.showMessageBox(win, { type: 'info', buttons: ['Перезапустить сейчас', 'Позже'], defaultId: 0, cancelId: 1, title: 'Обновление AiST.Ai', message: `Загружена версия ${info.version}`, detail: 'Обновление установится при перезапуске приложения.' });
       if (response === 0) { killAll(); autoUpdater.quitAndInstall(); }
     });
     autoUpdater.on('error', (e) => log.warn('updater', e?.message || e));
@@ -159,7 +159,7 @@ async function checkUpdates(interactive) {
   if (!autoUpdater) { if (interactive) dialog.showMessageBox({ message: 'Обновления доступны только в установленной версии приложения.' }); return; }
   try {
     const r = await autoUpdater.checkForUpdates();
-    if (interactive && (!r || !r.updateInfo || r.updateInfo.version === app.getVersion())) dialog.showMessageBox(win, { message: `У вас актуальная версия AiST ${app.getVersion()}.` });
+    if (interactive && (!r || !r.updateInfo || r.updateInfo.version === app.getVersion())) dialog.showMessageBox(win, { message: `У вас актуальная версия AiST.Ai ${app.getVersion()}.` });
   } catch (e) { if (interactive) dialog.showMessageBox(win, { type: 'error', message: 'Не удалось проверить обновления', detail: String(e?.message || e) }); }
 }
 
@@ -171,10 +171,10 @@ app.whenReady().then(async () => {
   buildMenu();
   createWindow();
   try {
-    if (!existsSync(paths.dshBin)) throw new Error('Harness runtime not found at ' + paths.dshBin);
+    if (!existsSync(paths.dshBin)) throw new Error('Не найден рантайм приложения: ' + paths.dshBin);
     startProxy();
-    if (!(await waitForProxy())) throw new Error('Proxy did not start on port ' + PROXY_PORT + '. Is another AiST instance running?');
-    win.loadURL(splash('Запуск Harness… первый запуск может занять до минуты'));
+    if (!(await waitForProxy())) throw new Error('Служба AiST не запустилась на порту ' + PROXY_PORT + '. Возможно, уже открыт другой экземпляр AiST.Ai.');
+    win.loadURL(splash('Запуск AiST.Ai… первый запуск может занять до минуты'));
     const { url } = await startHarness();
     log.info('Harness ready', url.replace(/token=.*/, 'token=…'));
     lastUrl = url;
@@ -182,7 +182,7 @@ app.whenReady().then(async () => {
     setupUpdates();
   } catch (e) {
     log.error(e);
-    if (win) win.loadURL(splash('!Не удалось запустить AiST.\n' + (e?.message || e)));
+    if (win) win.loadURL(splash('!Не удалось запустить AiST.Ai.\n' + (e?.message || e)));
   }
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

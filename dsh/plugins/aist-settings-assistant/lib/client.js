@@ -153,9 +153,9 @@ window.__ModuleLoader__.load({
 
 			return jsxs("div", { style: S.section, children: [
 				jsx("h2", { style: S.title, children: "Ассистенты AiST" }),
-				jsx("p", { style: S.intro, children: "Harness работает через ваших ассистентов на agent.aist-ai.com. Каждый ассистент — это пара JWT + ID; все они появляются в селекторе модели в чате, а отмеченный «по умолчанию» используется для новых сессий." }),
+				jsx("p", { style: S.intro, children: "AiST.Ai работает через ваших ассистентов на agent.aist-ai.com. Каждый ассистент — это пара JWT + ID; все они появляются в селекторе модели в чате, а отмеченный «по умолчанию» используется для новых сессий." }),
 				body,
-				jsx("p", { style: S.hint, children: "Прокси: " + PROXY + ". Токены хранятся в assistants.json рядом с прокси и в браузер не возвращаются. Смена ассистента по умолчанию применяется после перезапуска Harness." }),
+				jsx("p", { style: S.hint, children: "Прокси: " + PROXY + ". Токены хранятся в assistants.json рядом с прокси и в браузер не возвращаются. Смена ассистента по умолчанию применяется после перезапуска приложения." }),
 			] });
 		}
 
@@ -189,7 +189,7 @@ window.__ModuleLoader__.load({
 </style>
 <div class="box" role="dialog" aria-modal="true" aria-labelledby="aist-fr-title">
   <div class="head"><img src="${LOGO_URL}" width="36" height="36" style="border-radius:8px" alt=""><h2 id="aist-fr-title">Добавьте ассистента AiST</h2></div>
-  <p>Чтобы начать работу, подключите вашего ассистента с платформы AiST. Нужны JWT-токен Agent API и ID ассистента; их можно взять в личном кабинете. Позже ассистентов можно добавить и изменить в Настройки → Ассистенты.</p>
+  <p>Чтобы начать работу в AiST.Ai, подключите вашего ассистента с платформы AiST. Нужны JWT-токен Agent API и ID ассистента; их можно взять в личном кабинете. Позже ассистентов можно добавить и изменить в Настройки → Ассистенты.</p>
   <form id="aist-fr-form" autocomplete="off">
     <div class="row">
       <label>Название<input name="name" placeholder="Например: Мой ассистент" required><span class="hint">Так он называется в селекторе модели.</span></label>

@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
 		function watchTitle() {
 			const fix = () => {
 				const t = document.title;
-				const n = t.replace(/DeepSeek Harness/g, "AiST");
+				const n = t.replace(/DeepSeek Harness/g, "AiST.Ai").replace(/Harness/g, "AiST.Ai");
 				if (n !== t) document.title = n;
 			};
 			fix();

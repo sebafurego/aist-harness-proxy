@@ -1,8 +1,8 @@
 {
   "name": "aist-harness-desktop",
   "productName": "AiST",
-  "version": "0.1.0",
-  "description": "AiST desktop: DeepSeek Harness + AiST agent proxy in one app",
+  "version": "0.1.1",
+  "description": "AiST.Ai: десктоп-приложение для ассистентов AiST",
   "main": "main.cjs",
   "private": true,
   "license": "MIT",

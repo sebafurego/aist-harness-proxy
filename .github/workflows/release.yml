@@ -25,7 +25,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "AiST ${GITHUB_REF_NAME#v}" --notes "Сборки для macOS (Apple Silicon) и Windows (x64). Приложение обновляется автоматически."
+            gh release create "$GITHUB_REF_NAME" --title "AiST.Ai ${GITHUB_REF_NAME#v}" --notes "Сборки для macOS (Apple Silicon) и Windows (x64). Приложение обновляется автоматически."
 
   build:
     needs: prepare
@@ -52,7 +52,7 @@ jobs:
             desktop/package-lock.json
             desktop/runtime/package-lock.json
 
-      - name: Install Harness runtime (platform-specific native modules)
+      - name: Install app runtime (platform-specific native modules)
         working-directory: desktop/runtime
         run: npm ci
 
