@@ -1,0 +1,32 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+- id: ui-settings-general
+  name: "@deepseek-ai/dsh-client-ui-settings-general"
+  config:
+    welcomeNoticeVersion: 2026-09-28.1
+
+# AiST agent via local Anthropic-compatible proxy (~/dev/aist-harness-proxy)
+- id: llm-pi-ai
+  config:
+    providers:
+      aist:
+        displayName: AiST
+        apiKeyEnv: AIST_PROXY_KEY
+        api: anthropic-messages
+        baseURL: http://127.0.0.1:3091
+        defaultContextWindow: 200000
+        defaultMaxTokens: 32768
+        retryPolicy:
+          mode: normal
+          maxRetries: 2
+        models:
+          - id: aist-87
+            name: AiST Агент 87
+            input: [text]
+            contextWindow: 200000
+
+- id: agent-default-model
+  config:
+    provider: aist
+    model: aist-87

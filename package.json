@@ -1,0 +1,13 @@
+{
+  "name": "aist-harness-proxy",
+  "version": "0.1.0",
+  "description": "Anthropic Messages API facade over the AiST Agent API (agent.aist-ai.com) for DeepSeek Harness and other Anthropic-compatible clients",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
