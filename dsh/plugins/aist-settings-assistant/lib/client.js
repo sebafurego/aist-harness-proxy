@@ -159,9 +159,75 @@ window.__ModuleLoader__.load({
 			] });
 		}
 
+		// ---- first-run prompt: a plain DOM overlay shown whenever no assistant is configured ----
+		function esc(t) { return String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+		async function firstRunPrompt() {
+			let cfg;
+			try { const r = await fetch(PROXY + "/config"); if (!r.ok) return; cfg = await r.json(); } catch { return; }
+			if ((cfg.assistants || []).length) return;
+			if (document.getElementById("aist-first-run")) return;
+			const root = document.createElement("div");
+			root.id = "aist-first-run";
+			root.innerHTML = `
+<style>
+#aist-first-run{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);font-family:inherit;color:var(--dsw-alias-label-primary,#eee)}
+#aist-first-run .box{width:min(560px,92vw);background:var(--dsw-specific-sidebar-fill,#1e1e1e);border:0.5px solid var(--dsw-alias-border-l3,#444);border-radius:16px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:16px}
+#aist-first-run .head{display:flex;align-items:center;gap:12px}
+#aist-first-run h2{margin:0;font-size:20px;font-weight:600}
+#aist-first-run p{margin:0;color:var(--dsw-alias-label-secondary,#aaa);line-height:22px;font-size:14px}
+#aist-first-run label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500}
+#aist-first-run input{box-sizing:border-box;width:100%;padding:9px 10px;font:inherit;font-size:13px;color:inherit;background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.12));border:0.5px solid var(--dsw-alias-border-l3,#444);border-radius:8px;outline:none}
+#aist-first-run input:focus{border-color:var(--dsw-alias-state-business-primary,#7c8cff)}
+#aist-first-run .row{display:grid;grid-template-columns:1fr 140px;gap:12px}
+#aist-first-run .hint{font-size:12px;color:var(--dsw-alias-label-secondary,#aaa);font-weight:400}
+#aist-first-run .actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#aist-first-run button{font:inherit;font-size:14px;font-weight:500;padding:8px 16px;border-radius:8px;border:0.5px solid var(--dsw-alias-border-l3,#444);background:transparent;color:inherit;cursor:pointer}
+#aist-first-run button.primary{background:var(--dsw-alias-label-primary,#fff);color:var(--dsw-alias-label-primary-inverted,#111);border-color:transparent}
+#aist-first-run button:disabled{opacity:.5;cursor:default}
+#aist-first-run .err{color:#e5484d;font-size:13px}
+#aist-first-run .ok{color:#3ba55d;font-size:13px}
+</style>
+<div class="box" role="dialog" aria-modal="true" aria-labelledby="aist-fr-title">
+  <div class="head"><img src="${LOGO_URL}" width="36" height="36" style="border-radius:8px" alt=""><h2 id="aist-fr-title">Добавьте ассистента AiST</h2></div>
+  <p>Чтобы начать работу, подключите вашего ассистента с платформы AiST. Нужны JWT-токен Agent API и ID ассистента; их можно взять в личном кабинете. Позже ассистентов можно добавить и изменить в Настройки → Ассистенты.</p>
+  <form id="aist-fr-form" autocomplete="off">
+    <div class="row">
+      <label>Название<input name="name" placeholder="Например: Мой ассистент" required><span class="hint">Так он называется в селекторе модели.</span></label>
+      <label>ID ассистента<input name="assistant_id" type="number" min="1" required><span class="hint">assistant_id из кабинета.</span></label>
+    </div>
+    <label style="margin-top:12px">JWT-токен<input name="token" type="password" placeholder="eyJhbGciOiJSUzI1NiIs…" required spellcheck="false"><span class="hint">RS256 JWT с правом agent-api. Хранится только на этом компьютере.</span></label>
+    <div class="actions" style="margin-top:16px">
+      <button type="submit" class="primary">Подключить</button>
+      <button type="button" id="aist-fr-later">Позже</button>
+      <span id="aist-fr-msg"></span>
+    </div>
+  </form>
+</div>`;
+			document.body.appendChild(root);
+			const form = root.querySelector("#aist-fr-form"), msg = root.querySelector("#aist-fr-msg"), submit = form.querySelector("button[type=submit]");
+			root.querySelector("#aist-fr-later").onclick = () => root.remove();
+			form.querySelector("input[name=name]").focus();
+			form.onsubmit = async (e) => {
+				e.preventDefault();
+				const fd = new FormData(form);
+				const body = { assistants: [{ name: String(fd.get("name") || "").trim(), assistant_id: String(fd.get("assistant_id") || "").trim(), token: String(fd.get("token") || "").trim(), default: true }] };
+				submit.disabled = true; msg.className = ""; msg.textContent = "Проверка токена…";
+				try {
+					const r = await fetch(PROXY + "/config", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+					const j = await r.json().catch(() => ({}));
+					if (!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status));
+					msg.className = "ok"; msg.textContent = "Подключено. Перезагружаем…";
+					setTimeout(() => location.reload(), 900);
+				} catch (err) { msg.className = "err"; msg.textContent = err.message || "Не удалось подключить"; submit.disabled = false; }
+			};
+		}
+		const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6cff"/><stop offset="0.45" stop-color="#5a3fd6"/><stop offset="0.75" stop-color="#c25a9a"/><stop offset="1" stop-color="#f2a35c"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#g)"/><text x="64" y="88" text-anchor="middle" font-family="Inter, -apple-system, Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="#fff">Ai</text></svg>';
+		const LOGO_URL = "data:image/svg+xml;utf8," + encodeURIComponent(LOGO_SVG);
+
 		const inject = ["slots"];
 		function apply(ctx) {
 			ctx.slots.inject("settings.section", () => ctx.slots.register({ name: "settings.section", id: "aist-assistant", order: 10, label: () => "Ассистенты" }, AssistantSection));
+			setTimeout(() => { firstRunPrompt().catch(() => {}); }, 1500);
 		}
 		exports.apply = apply;
 		exports.inject = inject;

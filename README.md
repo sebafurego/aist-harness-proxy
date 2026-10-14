@@ -95,8 +95,9 @@ ln -sfn ../plugins/aist-locale-ru ~/.dsh/profiles/web/node_modules/dsh-client-lo
 переписывает блок между `# BEGIN aist-provider` и `# END aist-provider` в
 `~/.dsh/profiles/web/cordis.patch.yml` (путь настраивается `DSH_PATCH_FILE`): список моделей
 и модель по умолчанию. Список моделей Harness подхватывает без перезапуска, модель
-по умолчанию — после перезапуска. Старый `.env` с `AIST_TOKEN`/`AIST_ASSISTANT_ID`
-мигрирует в реестр автоматически при первом старте.
+по умолчанию — после перезапуска. Никаких ассистентов и токенов по умолчанию нет: при первом запуске (пока `assistants.json`
+пуст) Harness показывает окно «Добавьте ассистента AiST» с формой название / ID / JWT;
+после подключения страница перезагружается и ассистент выбран в чате.
 
 В `cordis.patch.yml` отключены DeepSeek-плагины: `llm-deepseek`, `llm-deepseek-account`,
 `ui-settings-models`, `ui-settings-account`. Единственный провайдер — AiST.

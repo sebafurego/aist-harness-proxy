@@ -37,14 +37,9 @@ function decodeJwt(token) {
 }
 function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'a'; }
 function loadAssistants() {
-  if (existsSync(ASSISTANTS_FILE)) {
-    try { assistants = JSON.parse(readFileSync(ASSISTANTS_FILE, 'utf8')).assistants ?? []; } catch (e) { console.error('assistants.json is invalid:', e.message); assistants = []; }
-  } else if (process.env.AIST_TOKEN) {
-    // migrate the single-assistant .env setup
-    const id = Number(process.env.AIST_ASSISTANT_ID || 87);
-    assistants = [{ slug: String(id), name: `AiST Агент ${id}`, assistant_id: id, token: process.env.AIST_TOKEN, default: true }];
-    saveAssistants();
-  }
+  // No implicit defaults: a fresh install has no assistants and no token until the user adds one.
+  if (!existsSync(ASSISTANTS_FILE)) { assistants = []; return; }
+  try { assistants = JSON.parse(readFileSync(ASSISTANTS_FILE, 'utf8')).assistants ?? []; } catch (e) { console.error('assistants.json is invalid:', e.message); assistants = []; }
   if (assistants.length && !assistants.some((a) => a.default)) assistants[0].default = true;
 }
 function saveAssistants() { writeFileSync(ASSISTANTS_FILE, JSON.stringify({ assistants }, null, 2) + '\n'); }
@@ -94,7 +89,7 @@ ${models || '          []\n'}
   return true;
 }
 loadAssistants();
-if (!assistants.length) console.warn('No assistants configured: add one via the Harness settings page (Ассистент)');
+if (!assistants.length) console.warn('No assistants configured yet: Harness will ask to add one on start');
 
 function corsHeaders(req) {
   const origin = req.headers.origin || '';
