@@ -7,7 +7,7 @@ const { join, dirname } = require('node:path');
 const log = require('electron-log');
 const { prepareDshHome } = require('./bootstrap.cjs');
 
-app.setName('AiST');
+app.setName('AiST Cowork');
 const PROXY_PORT = Number(process.env.AIST_PROXY_PORT || 3091);
 const isPackaged = app.isPackaged;
 const repoRoot = join(__dirname, '..');
@@ -101,37 +101,37 @@ function startHarness() {
 let win;
 let lastUrl = null;
 function splash(text) {
-  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>AiST.Ai</title>
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>AiST Cowork</title>
 <style>html,body{height:100%;margin:0;background:#141414;color:#eee;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif}
 .c{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
-.logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#5b6cff,#5a3fd6 45%,#c25a9a 75%,#f2a35c);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:34px;color:#fff}
+.logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#2b2b33,#101014 55%,#000);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:34px;background-clip:padding-box}.logo span{background:linear-gradient(135deg,#8fa0ff,#c77be0 50%,#ffb070);-webkit-background-clip:text;color:transparent}
 .t{font-size:15px;color:#aaa}.err{max-width:560px;color:#e5484d;white-space:pre-wrap;text-align:center;font-size:13px;line-height:20px}</style></head>
-<body><div class="c"><div class="logo">Ai</div><div class="${text.startsWith('!') ? 'err' : 't'}">${text.replace(/^!/, '')}</div></div></body></html>`);
+<body><div class="c"><div class="logo"><span>Ai</span></div><div class="${text.startsWith('!') ? 'err' : 't'}">${text.replace(/^!/, '')}</div></div></body></html>`);
 }
 function createWindow() {
   win = new BrowserWindow({
     width: 1360, height: 860, minWidth: 900, minHeight: 600,
-    title: 'AiST', backgroundColor: '#141414', show: false,
+    title: 'AiST Cowork', backgroundColor: '#141414', show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.once('ready-to-show', () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.on('closed', () => { win = null; });
-  win.loadURL(splash('Запуск AiST.Ai…'));
+  win.loadURL(splash('Запуск AiST Cowork…'));
   return win;
 }
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
-    ...(isMac ? [{ label: 'AiST', submenu: [{ role: 'about', label: 'О программе AiST.Ai' }, { type: 'separator' }, { label: 'Проверить обновления…', click: () => checkUpdates(true) }, { type: 'separator' }, { role: 'hide', label: 'Скрыть AiST.Ai' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit', label: 'Завершить AiST.Ai' }] }] : []),
+    ...(isMac ? [{ label: 'AiST Cowork', submenu: [{ role: 'about', label: 'О программе AiST Cowork' }, { type: 'separator' }, { label: 'Проверить обновления…', click: () => checkUpdates(true) }, { type: 'separator' }, { role: 'hide', label: 'Скрыть AiST Cowork' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit', label: 'Завершить AiST Cowork' }] }] : []),
     { label: 'Правка', submenu: [{ role: 'undo', label: 'Отменить' }, { role: 'redo', label: 'Повторить' }, { type: 'separator' }, { role: 'cut', label: 'Вырезать' }, { role: 'copy', label: 'Копировать' }, { role: 'paste', label: 'Вставить' }, { role: 'selectAll', label: 'Выбрать всё' }] },
     { label: 'Вид', submenu: [{ role: 'reload', label: 'Перезагрузить' }, { role: 'toggleDevTools', label: 'Инструменты разработчика' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen', label: 'Во весь экран' }] },
     { label: 'Справка', submenu: [
       { label: 'Папка с логами', click: () => shell.openPath(logsDir) },
       { label: 'Папка данных', click: () => shell.openPath(userData) },
-      ...(isMac ? [] : [{ label: 'Проверить обновления…', click: () => checkUpdates(true) }, { label: 'О программе', click: () => dialog.showMessageBox({ title: 'AiST', message: `AiST.Ai ${app.getVersion()}`, detail: 'Десктоп-приложение для ассистентов AiST' }) }]),
+      ...(isMac ? [] : [{ label: 'Проверить обновления…', click: () => checkUpdates(true) }, { label: 'О программе', click: () => dialog.showMessageBox({ title: 'AiST', message: `AiST Cowork ${app.getVersion()}`, detail: 'Десктоп-приложение для ассистентов AiST' }) }]),
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -147,7 +147,7 @@ function setupUpdates() {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('update-downloaded', async (info) => {
-      const { response } = await dialog.showMessageBox(win, { type: 'info', buttons: ['Перезапустить сейчас', 'Позже'], defaultId: 0, cancelId: 1, title: 'Обновление AiST.Ai', message: `Загружена версия ${info.version}`, detail: 'Обновление установится при перезапуске приложения.' });
+      const { response } = await dialog.showMessageBox(win, { type: 'info', buttons: ['Перезапустить сейчас', 'Позже'], defaultId: 0, cancelId: 1, title: 'Обновление AiST Cowork', message: `Загружена версия ${info.version}`, detail: 'Обновление установится при перезапуске приложения.' });
       if (response === 0) { killAll(); autoUpdater.quitAndInstall(); }
     });
     autoUpdater.on('error', (e) => log.warn('updater', e?.message || e));
@@ -159,7 +159,7 @@ async function checkUpdates(interactive) {
   if (!autoUpdater) { if (interactive) dialog.showMessageBox({ message: 'Обновления доступны только в установленной версии приложения.' }); return; }
   try {
     const r = await autoUpdater.checkForUpdates();
-    if (interactive && (!r || !r.updateInfo || r.updateInfo.version === app.getVersion())) dialog.showMessageBox(win, { message: `У вас актуальная версия AiST.Ai ${app.getVersion()}.` });
+    if (interactive && (!r || !r.updateInfo || r.updateInfo.version === app.getVersion())) dialog.showMessageBox(win, { message: `У вас актуальная версия AiST Cowork ${app.getVersion()}.` });
   } catch (e) { if (interactive) dialog.showMessageBox(win, { type: 'error', message: 'Не удалось проверить обновления', detail: String(e?.message || e) }); }
 }
 
@@ -173,8 +173,8 @@ app.whenReady().then(async () => {
   try {
     if (!existsSync(paths.dshBin)) throw new Error('Не найден рантайм приложения: ' + paths.dshBin);
     startProxy();
-    if (!(await waitForProxy())) throw new Error('Служба AiST не запустилась на порту ' + PROXY_PORT + '. Возможно, уже открыт другой экземпляр AiST.Ai.');
-    win.loadURL(splash('Запуск AiST.Ai… первый запуск может занять до минуты'));
+    if (!(await waitForProxy())) throw new Error('Служба AiST не запустилась на порту ' + PROXY_PORT + '. Возможно, уже открыт другой экземпляр AiST Cowork.');
+    win.loadURL(splash('Запуск AiST Cowork… первый запуск может занять до минуты'));
     const { url } = await startHarness();
     log.info('Harness ready', url.replace(/token=.*/, 'token=…'));
     lastUrl = url;
@@ -182,7 +182,7 @@ app.whenReady().then(async () => {
     setupUpdates();
   } catch (e) {
     log.error(e);
-    if (win) win.loadURL(splash('!Не удалось запустить AiST.Ai.\n' + (e?.message || e)));
+    if (win) win.loadURL(splash('!Не удалось запустить AiST Cowork.\n' + (e?.message || e)));
   }
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

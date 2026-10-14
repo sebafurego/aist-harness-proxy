@@ -7,13 +7,13 @@ window.__ModuleLoader__.load({
 		const { jsx, jsxs } = require("react/jsx-runtime");
 
 		// AiST logo: gradient tile with white "Ai" (recreated from the brand image).
-		const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6cff"/><stop offset="0.45" stop-color="#5a3fd6"/><stop offset="0.75" stop-color="#c25a9a"/><stop offset="1" stop-color="#f2a35c"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#g)"/><text x="64" y="88" text-anchor="middle" font-family="Inter, -apple-system, Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="#fff">Ai</text></svg>';
+		const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2b33"/><stop offset="0.55" stop-color="#101014"/><stop offset="1" stop-color="#000"/></linearGradient><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fa0ff"/><stop offset="0.5" stop-color="#c77be0"/><stop offset="1" stop-color="#ffb070"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#bg)"/><rect x="1" y="1" width="126" height="126" rx="27" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="1.5"/><text x="64" y="88" text-anchor="middle" font-family="Inter, -apple-system, Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="url(#ink)">Ai</text></svg>';
 		const LOGO_URL = "data:image/svg+xml;utf8," + encodeURIComponent(LOGO_SVG);
 		function AistMark({ size = 24, className }) {
 			return jsx("img", { src: LOGO_URL, width: size, height: size, className, alt: "AiST", style: { borderRadius: Math.round(size * 0.22), display: "block" } });
 		}
 		function AistName() {
-			return jsx("span", { style: { fontWeight: 700, fontSize: 18, letterSpacing: "0.02em" }, children: "AiST" });
+			return jsx("span", { style: { fontWeight: 700, fontSize: 18, letterSpacing: "0.02em" }, children: "AiST Cowork" });
 		}
 		function AistHeroMark({ size = 34, className }) {
 			return jsx(AistMark, { size, className });
@@ -23,7 +23,7 @@ window.__ModuleLoader__.load({
 		function watchTitle() {
 			const fix = () => {
 				const t = document.title;
-				const n = t.replace(/DeepSeek Harness/g, "AiST.Ai").replace(/Harness/g, "AiST.Ai");
+				const n = t.replace(/DeepSeek Harness/g, "AiST Cowork").replace(/Harness/g, "AiST Cowork").replace(/AiST\.Ai/g, "AiST Cowork");
 				if (n !== t) document.title = n;
 			};
 			fix();

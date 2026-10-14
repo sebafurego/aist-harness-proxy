@@ -153,7 +153,7 @@ window.__ModuleLoader__.load({
 
 			return jsxs("div", { style: S.section, children: [
 				jsx("h2", { style: S.title, children: "Ассистенты AiST" }),
-				jsx("p", { style: S.intro, children: "AiST.Ai работает через ваших ассистентов на agent.aist-ai.com. Каждый ассистент — это пара JWT + ID; все они появляются в селекторе модели в чате, а отмеченный «по умолчанию» используется для новых сессий." }),
+				jsx("p", { style: S.intro, children: "AiST Cowork работает через ваших ассистентов на agent.aist-ai.com. Каждый ассистент — это пара JWT + ID; все они появляются в селекторе модели в чате, а отмеченный «по умолчанию» используется для новых сессий." }),
 				body,
 				jsx("p", { style: S.hint, children: "Прокси: " + PROXY + ". Токены хранятся в assistants.json рядом с прокси и в браузер не возвращаются. Смена ассистента по умолчанию применяется после перезапуска приложения." }),
 			] });
@@ -189,7 +189,7 @@ window.__ModuleLoader__.load({
 </style>
 <div class="box" role="dialog" aria-modal="true" aria-labelledby="aist-fr-title">
   <div class="head"><img src="${LOGO_URL}" width="36" height="36" style="border-radius:8px" alt=""><h2 id="aist-fr-title">Добавьте ассистента AiST</h2></div>
-  <p>Чтобы начать работу в AiST.Ai, подключите вашего ассистента с платформы AiST. Нужны JWT-токен Agent API и ID ассистента; их можно взять в личном кабинете. Позже ассистентов можно добавить и изменить в Настройки → Ассистенты.</p>
+  <p>Чтобы начать работу в AiST Cowork, подключите вашего ассистента с платформы AiST. Нужны JWT-токен Agent API и ID ассистента; их можно взять в личном кабинете. Позже ассистентов можно добавить и изменить в Настройки → Ассистенты.</p>
   <form id="aist-fr-form" autocomplete="off">
     <div class="row">
       <label>Название<input name="name" placeholder="Например: Мой ассистент" required><span class="hint">Так он называется в селекторе модели.</span></label>
@@ -221,7 +221,7 @@ window.__ModuleLoader__.load({
 				} catch (err) { msg.className = "err"; msg.textContent = err.message || "Не удалось подключить"; submit.disabled = false; }
 			};
 		}
-		const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b6cff"/><stop offset="0.45" stop-color="#5a3fd6"/><stop offset="0.75" stop-color="#c25a9a"/><stop offset="1" stop-color="#f2a35c"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#g)"/><text x="64" y="88" text-anchor="middle" font-family="Inter, -apple-system, Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="#fff">Ai</text></svg>';
+		const LOGO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2b33"/><stop offset="0.55" stop-color="#101014"/><stop offset="1" stop-color="#000"/></linearGradient><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fa0ff"/><stop offset="0.5" stop-color="#c77be0"/><stop offset="1" stop-color="#ffb070"/></linearGradient></defs><rect width="128" height="128" rx="28" fill="url(#bg)"/><rect x="1" y="1" width="126" height="126" rx="27" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="1.5"/><text x="64" y="88" text-anchor="middle" font-family="Inter, -apple-system, Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="url(#ink)">Ai</text></svg>';
 		const LOGO_URL = "data:image/svg+xml;utf8," + encodeURIComponent(LOGO_SVG);
 
 		const inject = ["slots"];

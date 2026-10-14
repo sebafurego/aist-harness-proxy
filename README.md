@@ -107,7 +107,7 @@ ln -sfn ../plugins/aist-locale-ru ~/.dsh/profiles/web/node_modules/dsh-client-lo
 Папка `desktop/`: Electron-оболочка, которая запускает прокси и Harness на встроенном Node и
 показывает UI в окне. В комплекте: рантайм Harness (`desktop/runtime`, pinned версия),
 бинарник Node 22 (`desktop/node-bin/<os>-<arch>`, скачивается при сборке), прокси и плагины.
-Данные пользователя: `~/Library/Application Support/AiST` (macOS) / `%APPDATA%\AiST` (Windows):
+Данные пользователя: `~/Library/Application Support/AiST Cowork` (macOS) / `%APPDATA%\AiST Cowork` (Windows):
 `dsh/` (DSH_HOME), `proxy/assistants.json`, `logs/`.
 
 ```bash

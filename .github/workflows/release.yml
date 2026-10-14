@@ -25,7 +25,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "AiST.Ai ${GITHUB_REF_NAME#v}" --notes "Сборки для macOS (Apple Silicon) и Windows (x64). Приложение обновляется автоматически."
+            gh release create "$GITHUB_REF_NAME" --title "AiST Cowork ${GITHUB_REF_NAME#v}" --notes "Сборки для macOS (Apple Silicon) и Windows (x64). Приложение обновляется автоматически."
 
   build:
     needs: prepare

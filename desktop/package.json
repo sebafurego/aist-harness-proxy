@@ -1,8 +1,8 @@
 {
   "name": "aist-harness-desktop",
-  "productName": "AiST",
-  "version": "0.1.1",
-  "description": "AiST.Ai: десктоп-приложение для ассистентов AiST",
+  "productName": "AiST Cowork",
+  "version": "0.2.0",
+  "description": "AiST Cowork: десктоп-приложение для ассистентов AiST",
   "main": "main.cjs",
   "private": true,
   "license": "MIT",
@@ -24,9 +24,9 @@
     "electron-log": "^5.4.1"
   },
   "build": {
-    "appId": "com.aist.harness",
-    "productName": "AiST",
-    "artifactName": "AiST-${version}-${os}-${arch}.${ext}",
+    "appId": "com.aist.cowork",
+    "productName": "AiST Cowork",
+    "artifactName": "AiST-Cowork-${version}-${os}-${arch}.${ext}",
     "asar": true,
     "files": ["main.cjs", "preload.cjs", "bootstrap.cjs", "package.json"],
     "extraResources": [
