@@ -12,7 +12,23 @@ env:
   NODE_RUNTIME_VERSION: v22.23.3
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+      - name: Create the release once (builds upload into it, no duplicate releases)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "AiST ${GITHUB_REF_NAME#v}" --notes "Сборки для macOS (Apple Silicon) и Windows (x64). Приложение обновляется автоматически."
+
   build:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -80,3 +96,29 @@ jobs:
             desktop/dist/*.exe
             desktop/dist/*.yml
           if-no-files-found: ignore
+
+  pages:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write latest release info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p out && cp -R site/* out/
+          gh release view "$GITHUB_REF_NAME" --json tagName,name,publishedAt,body,assets > out/latest.json
+          head -c 400 out/latest.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+      - id: deployment
+        uses: actions/deploy-pages@v4
