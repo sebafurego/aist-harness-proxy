@@ -217,20 +217,55 @@ async function handleMessages(body) {
     if (!hit) throw Object.assign(new Error('tool_result references unknown tool_use id (proxy restarted?). Start a new chat.'), { status: 400 });
     const { uuid } = hit;
     const expected = pendingByTask.get(uuid) ?? new Set();
-    const results = [];
-    for (const r of toolResults) {
-      if (!expected.has(r.tool_use_id)) continue;
-      const text = await blocksToTextWithVision(r.content);
-      results.push(r.is_error
-        ? { id: r.tool_use_id, error: text.slice(0, 20000) || 'Tool error', reason: 'tool_error' }
-        : { id: r.tool_use_id, content: text || '(empty)' });
-    }
-    for (const id of expected) if (!results.find((x) => x.id === id)) results.push({ id, error: 'No result returned by client', reason: 'missing' });
     for (const id of expected) pendingByToolId.delete(id);
     pendingByTask.delete(uuid);
-    log(`→ tool-results ${uuid} (${results.length})`);
-    await aist('POST', `/api/tasks/${uuid}/tool-results`, { tool_results: results });
-    task = await waitForTask(uuid);
+    const mine = toolResults.filter((r) => expected.has(r.tool_use_id));
+    const images = mine.flatMap((r) => Array.isArray(r.content) ? r.content.filter((b) => b.type === 'image' && b.source?.type === 'base64') : []);
+
+    if (images.length) {
+      // AiST accepts tool results as plain strings only, but accepts files on task input.
+      // So: close the interrupted task and re-open the turn as a new task carrying the
+      // transcript of this turn so far plus the images as uploaded files.
+      log(`→ ${uuid} tool result carries ${images.length} image(s): re-opening turn as a new task with files`);
+      try { await aist('POST', `/api/tasks/${uuid}/cancel`, { reason: 'tool result contains images; continued in a new task' }); } catch (e) { log('cancel failed:', e.message); }
+      const input = [];
+      const sys = systemToText(system);
+      if (sys) input.push({ type: 'text', text: `<system>\n${sys}\n</system>` });
+      // Everything after the last stored turn boundary: the current user request + tool calls so far.
+      const turns = convTurns.get(convKey) ?? [];
+      const lastUserIdx = messages.map((m, i) => (m.role === 'user' && !(Array.isArray(m.content) && m.content.some((b) => b.type === 'tool_result')) ? i : -1)).filter((i) => i >= 0).pop() ?? 0;
+      const turnMsgs = messages.slice(lastUserIdx, -1);
+      const transcript = turnMsgs.map((m) => `${m.role.toUpperCase()}: ${blocksToText(m.content)}`).join('\n\n');
+      const resultsText = [];
+      for (const r of mine) {
+        const textPart = Array.isArray(r.content) ? blocksToText(r.content.filter((b) => b.type !== 'image')) : blocksToText(r.content);
+        resultsText.push(`[tool_result ${r.tool_use_id}]${r.is_error ? ' (error)' : ''} ${textPart || '(see attached image)'}`);
+      }
+      input.push({ type: 'text', text: `<turn_in_progress>\n${transcript}\n\n${resultsText.join('\n')}\n</turn_in_progress>\n\nThe attached image(s) are the result of the last tool call(s). Continue the task from this point; do not repeat completed steps.` });
+      for (const [i, img] of images.entries()) {
+        try { input.push(await uploadImage(img, i + 1)); }
+        catch (e) { log('upload failed, falling back to vision:', e.message); input.push({ type: 'text', text: await describeImage(img) }); }
+      }
+      const payload = { assistant_id: Number(AIST_ASSISTANT_ID), input };
+      if (turns.length) payload.turns = turns.slice(-20);
+      const clientTools = toClientTools(tools);
+      if (clientTools.length) payload.client_tools = clientTools;
+      const created = await aist('POST', '/api/tasks', payload);
+      log(`→ task ${created.uuid} created (re-opened turn with ${images.length} image(s))`);
+      task = await waitForTask(created.uuid);
+    } else {
+      const results = [];
+      for (const r of mine) {
+        const text = blocksToText(r.content);
+        results.push(r.is_error
+          ? { id: r.tool_use_id, error: text.slice(0, 20000) || 'Tool error', reason: 'tool_error' }
+          : { id: r.tool_use_id, content: text || '(empty)' });
+      }
+      for (const id of expected) if (!results.find((x) => x.id === id)) results.push({ id, error: 'No result returned by client', reason: 'missing' });
+      log(`→ tool-results ${uuid} (${results.length})`);
+      await aist('POST', `/api/tasks/${uuid}/tool-results`, { tool_results: results });
+      task = await waitForTask(uuid);
+    }
   } else {
     // ---- new task
     const input = [];
